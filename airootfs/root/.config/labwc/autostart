@@ -1,0 +1,2 @@
+alacritty &
+python3 /system/applications/topbar/topbar.py &
