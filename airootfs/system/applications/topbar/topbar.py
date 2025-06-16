@@ -1,62 +1,96 @@
-#!/usr/bin/env python3
+from ctypes import CDLL
+CDLL('libgtk4-layer-shell.so')
+
 import gi
-import datetime
+import time
+import subprocess
 
-gi.require_version("Gtk", "4.0")
+gi.require_version('Gtk', '4.0')
+gi.require_version('Gtk4LayerShell', '1.0')
+
 from gi.repository import Gtk, GLib
+from gi.repository import Gtk4LayerShell as LayerShell
 
-from pywlroots import WlrootsCompositor, LayerShellV1
+def on_activate(app):
+    window = Gtk.Window(application=app)
+    window.set_default_size(0, 30)
+    
+    provider = Gtk.CssProvider()
+    provider.load_from_path("gui.css")
+    Gtk.StyleContext.add_provider_for_display(
+        window.get_display(),
+        provider,
+        Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
+    )
 
-class TopBar:
-    def __init__(self):
-        self.compositor = WlrootsCompositor()
-        self.layershell = LayerShellV1(self.compositor)
+    LayerShell.init_for_window(window)
+    LayerShell.set_layer(window, LayerShell.Layer.TOP)
+    LayerShell.set_anchor(window, LayerShell.Edge.TOP, True)
+    LayerShell.set_anchor(window, LayerShell.Edge.LEFT, True)
+    LayerShell.set_anchor(window, LayerShell.Edge.RIGHT, True)
+    LayerShell.set_margin(window, LayerShell.Edge.TOP, 0)
+    LayerShell.set_margin(window, LayerShell.Edge.LEFT, 0)
+    LayerShell.set_margin(window, LayerShell.Edge.RIGHT, 0)
+    LayerShell.auto_exclusive_zone_enable(window)
 
-        self.compositor.start()
+    box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+    window.set_child(box)
 
-        # GTK app and window
-        self.app = Gtk.Application(application_id="com.drawsko.TopBar")
-        self.app.connect("activate", self.on_activate)
+    menu_button = Gtk.MenuButton()
+    menu_button.get_style_context().add_class("flat")
+    menu_button.set_size_request(-1, 30)
+    menu_button.set_label("DRAWSKO")
 
-    def on_activate(self, app):
-        # Create GTK window
-        self.window = Gtk.ApplicationWindow(application=app)
-        self.window.set_decorated(False)
-        self.window.set_resizable(False)
-        self.window.set_default_size(800, 28)
+    popover = Gtk.Popover()
+    menu_button.set_popover(popover)
 
-        # Create a label to show time, right aligned
-        box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
-        box.set_hexpand(True)
+    popover_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+    popover_box.set_margin_start(10)
+    popover_box.set_margin_end(10)
+    popover_box.set_margin_top(10)
+    popover_box.set_margin_bottom(10)
+    popover.set_child(popover_box)
 
-        self.label_time = Gtk.Label()
-        self.label_time.set_halign(Gtk.Align.END)
-        box.append(self.label_time)
+    btn1 = Gtk.Button(label="About This Computer")
+    btn2 = Gtk.Button(label="Terminal")
+    btn3 = Gtk.Button(label="Restart")
+    btn4 = Gtk.Button(label="Shutdown")
 
-        self.window.set_child(box)
+    def on_about_clicked(button):
+        subprocess.Popen(["python3", "/system/applications/about/about.py"])
 
-        # Tell layer shell this window is a top panel on all outputs
-        self.layershell.set_layer(self.window, LayerShellV1.Layer.TOP)
-        self.layershell.set_exclusive_zone(self.window, 28)
-        self.layershell.set_keyboard_interactivity(self.window, False)
-        self.layershell.set_anchor(self.window,
-                                   left=True, right=True,
-                                   top=True, bottom=False)
+    btn1.connect("clicked", on_about_clicked)
 
-        self.window.show()
+    def on_terminal_clicked(button):
+        subprocess.Popen(["python3", "/system/applications/terminal/terminal.py"])
 
-        # Update time every second
-        GLib.timeout_add_seconds(1, self.update_time)
-        self.update_time()
+    btn2.connect("clicked", on_terminal_clicked)
 
-    def update_time(self):
-        now = datetime.datetime.now()
-        self.label_time.set_text(now.strftime("%a %H:%M:%S"))
+    popover_box.append(btn1)
+    popover_box.append(btn2)
+    popover_box.append(btn3)
+    popover_box.append(btn4)
+
+    box.append(menu_button)
+
+    spacer = Gtk.Box()
+    spacer.set_hexpand(True)
+    box.append(spacer)
+
+    clock_label = Gtk.Label()
+    clock_label.set_margin_end(10)
+    box.append(clock_label)
+
+    def update_time():
+        now = time.strftime("%H:%M:%S")
+        clock_label.set_text(now)
         return True
 
-    def run(self):
-        self.app.run(None)
+    GLib.timeout_add_seconds(1, update_time)
+    update_time()
 
-if __name__ == "__main__":
-    topbar = TopBar()
-    topbar.run()
+    window.present()
+
+app = Gtk.Application(application_id='com.drawsko.topbar')
+app.connect('activate', on_activate)
+app.run(None)

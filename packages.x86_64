@@ -126,9 +126,9 @@ dbus
 xdg-user-dirs
 
 python
-python-gobject
 gtk4
+gtk-layer-shell
+python-gobject
 gobject-introspection
-pywlroots
 
 alacritty

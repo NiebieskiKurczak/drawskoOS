@@ -1,0 +1,8 @@
+NAME="DrawskoOS"
+PRETTY_NAME="DrawskoOS"
+ID="drawskoos"
+ID_LIKE="arch"
+BUILD_ID=rolling
+ANSI_COLOR="38;2;220;20;60"
+LOGO="drawsko"
+
