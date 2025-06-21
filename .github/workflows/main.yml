@@ -1,0 +1,108 @@
+name: Build DrawkoOS ISO
+
+on:
+  workflow_dispatch:  # Manual trigger only
+
+jobs:
+  build-iso:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Arch Linux container
+      run: |
+        # Pull Arch Linux Docker image
+        docker pull archlinux:latest
+        
+        # Create and run container with necessary privileges
+        docker run -d --name arch-builder \
+          --privileged \
+          -v ${{ github.workspace }}:/workspace \
+          -v /sys/fs/cgroup:/sys/fs/cgroup:rw \
+          archlinux:latest \
+          sleep infinity
+
+    - name: Install dependencies in container
+      run: |
+        docker exec arch-builder bash -c "
+          # Update system
+          pacman -Syu --noconfirm
+          
+          # Install archiso and other needed packages
+          pacman -S --noconfirm archiso git base-devel sudo
+          
+          # Create a build user (archiso doesn't like running as root)
+          useradd -m -G wheel -s /bin/bash builder
+          echo 'builder ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers
+          
+          # Fix ownership
+          chown -R builder:builder /workspace
+        "
+
+    - name: Build ISO
+      run: |
+        docker exec arch-builder bash -c "
+          cd /workspace
+          
+          # Make your existing build script executable and run it
+          chmod +x ./build-iso.sh
+          sudo -u builder ./build-iso.sh
+        "
+
+    - name: Get ISO info
+      id: iso_info
+      run: |
+        # Find the built ISO
+        ISO_PATH=$(find ${{ github.workspace }} -name "*.iso" -type f | head -1)
+        if [ -n "$ISO_PATH" ]; then
+          echo "iso_path=$ISO_PATH" >> $GITHUB_OUTPUT
+          echo "iso_name=$(basename $ISO_PATH)" >> $GITHUB_OUTPUT
+          echo "iso_size=$(du -h $ISO_PATH | cut -f1)" >> $GITHUB_OUTPUT
+        else
+          echo "No ISO found!"
+          exit 1
+        fi
+
+    - name: Upload ISO as artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: drawkoos-iso-${{ github.sha }}
+        path: ${{ steps.iso_info.outputs.iso_path }}
+        retention-days: 30
+
+    - name: Create Release (on tag)
+      if: false  # Disabled since this is manual only
+      uses: softprops/action-gh-release@v1
+      with:
+        files: ${{ steps.iso_info.outputs.iso_path }}
+        body: |
+          # DrawkoOS ${{ github.ref_name }}
+          
+          **ISO Size:** ${{ steps.iso_info.outputs.iso_size }}
+          **Built from commit:** ${{ github.sha }}
+          
+          ## What's included:
+          - Arch Linux base
+          - COSMIC desktop
+          - Firefox, Alacritty, NetworkManager
+          - Yay AUR helper
+          
+          ## Installation:
+          1. Flash this ISO to a USB drive
+          2. Boot from it
+          3. Run `./install.sh`
+          4. Follow the prompts
+          
+          **Warning:** This will wipe your selected disk completely!
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Cleanup
+      if: always()
+      run: |
+        docker stop arch-builder || true
+        docker rm arch-builder || true
