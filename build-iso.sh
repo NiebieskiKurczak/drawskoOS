@@ -5,6 +5,7 @@ set -e
 PROFILE_DIR="$(pwd)"         # Use current directory as archiso profile
 OUTPUT_DIR="$PROFILE_DIR/out"
 ISO_NAME="drawkoOS-testBuild.iso"
+WORK_DIR="$PROFILE_DIR/work"  # Define work directory
 
 # === CHECK DEPENDENCIES ===
 command -v mkarchiso >/dev/null 2>&1 || {
@@ -21,15 +22,22 @@ sudo mkarchiso -v -o "$OUTPUT_DIR" "$PROFILE_DIR"
 
 # === RENAME OUTPUT ISO ===
 cd "$OUTPUT_DIR"
-LATEST_ISO=$(ls -t archlinux-*.iso | head -n1)
-[ -f "$LATEST_ISO" ] && mv "$LATEST_ISO" "$ISO_NAME"
+LATEST_ISO=$(ls -t drawskoOS-*.iso 2>/dev/null | head -n1)
 
-if [ -d "$work_dir" ]; then
-  echo "Removing directory: $work_dir"
-  rm -rf "$work_dir"
+if [ -n "$LATEST_ISO" ] && [ -f "$LATEST_ISO" ]; then
+    mv "$LATEST_ISO" "$ISO_NAME"
+    echo "✅ ISO renamed to: $ISO_NAME"
 else
-  echo "Directory $work_dir does not exist."
+    echo "❌ Error: No drawskoOS-*.iso file found in output directory"
+    exit 1
 fi
 
+# === CLEANUP WORK DIRECTORY ===
+if [ -d "$WORK_DIR" ]; then
+    echo "Removing work directory: $WORK_DIR"
+    sudo rm -rf "$WORK_DIR"
+else
+    echo "Work directory $WORK_DIR does not exist (already cleaned up)"
+fi
 
 echo "✅ ISO built successfully: $OUTPUT_DIR/$ISO_NAME"

@@ -24,7 +24,6 @@ dosfstools
 e2fsprogs
 edk2-shell
 efibootmgr
-espeakup
 ethtool
 exfatprogs
 f2fs-tools
@@ -120,15 +119,3 @@ wpa_supplicant
 xfsprogs
 xl2tpd
 zsh
-
-labwc
-dbus
-xdg-user-dirs
-
-python
-gtk4
-gtk-layer-shell
-python-gobject
-gobject-introspection
-
-alacritty

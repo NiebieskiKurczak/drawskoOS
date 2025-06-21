@@ -1,1 +1,1 @@
-exec labwc
+sh install.sh
